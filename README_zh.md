@@ -7,42 +7,331 @@ CXX &mdash; Rust和C++之间的安全FFI
 [<img alt="build status" src="https://img.shields.io/github/actions/workflow/status/dtolnay/CXX/ci.yml" height="20">](https://github.com/dtolnay/CXX)
 
 
-## 概述
+## 引入背景
 
 
-CXX工具提供了一种安全的互相调用机制，可以实现rust和C++的互相调用，而不会像使用bindgen或cbindgen那样，生成不安全的C风格的绑定时，可能会出现很多问题。但是，这并不能改变C++代码100%是不安全的事实。当检查一个项目的安全性时，需要负责审核所有不安全的Rust代码和所有的C++代码。这种安全理念下的检查思想是，只对C++端进行检查，就足以发现所有不安全问题，也就是说，Rust方面被认为是100%安全的。
+CXX工具提供了一种安全的互相调用机制，可以实现rust和C++的互相调用。
 
 CXX通过FFI（Foreign Function Interface）和函数签名的形式来实现接口和类型声明，并对类型和函数签名进行静态分析，以维护Rust和C++的不变量和要求。
 
-如果所有的静态分析都通过了，那么CXX就会使用一对代码生成器来生成两侧相关的`extern "C"`签名，以及任何必要的静态断言，以便在以后的构建过程中验证正确性。在Rust侧，这个代码生成器只是一个属性宏。在C++方面，它可以是一个小型的Cargo构建脚本或者别的构建系统，如Bazel或Buck，CXX也提供了一个命令行工具来生成头文件和源文件，容易集成。
+<br>
 
-产生的FFI桥的运行成本为零或可忽略不计，也就是说，没有复制，没有序列化，没有内存分配，也不需要运行时检查。
+## CXX工具在OH上的使用指导
 
-FFI的签名能够使用来自任何一方的原生类型、比如Rust的`String`或C++的`std::string`，Rust的`Box`或C++的`std::unique_ptr`，Rust的`Vec`或C++的`std::vector`，等等的任意组合。CXX保证ABI兼容性，基于关键的标准库类型的内置绑定，在这些类型上向另一种语言暴露API。这些类型有着明确的对应关系，例如，当从Rust操作一个C++字符串时的时候，它的`len()`方法就变成了对C++定义的`size()`成员函数的调用。当从C++操作一个Rust字符串时，其`size()`成员函数函数调用Rust的`len()`。
+### C++调用Rust接口
+
+1. 在Rust侧文件lib.rs里mod ffi写清楚需要调用的C++接口，并将接口包含在extern "Rust"里面，暴露给C++侧使用。
+
+   ```rust
+   //! #[cxx::bridge]
+   #[cxx::bridge]
+   mod ffi{
+       #![allow(dead_code)]
+       #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+       struct Shared {
+           z: usize,
+       }
+       extern "Rust"{
+           fn print_message_in_rust();
+           fn r_return_primitive() -> usize;
+           fn r_return_shared() -> Shared;
+           fn r_return_rust_string() -> String;
+           fn r_return_sum(_: usize, _: usize) -> usize;
+       }
+   }
+
+   fn print_message_in_rust(){
+       println!("Here is a test for cpp call Rust.");
+   }
+   fn r_return_shared() -> ffi::Shared {
+       println!("Here is a message from Rust,test for ffi::Shared:");
+       ffi::Shared { z: 1996 }
+   }
+   fn r_return_primitive() -> usize {
+       println!("Here is a message from Rust,test for usize:");
+       1997
+   }
+   fn r_return_rust_string() -> String {
+       println!("Here is a message from Rust,test for String");
+       "Hello World!".to_owned()
+   }
+   fn r_return_sum(n1: usize, n2: usize) -> usize {
+       println!("Here is a message from Rust,test for {} + {} is:",n1 ,n2);
+       n1 + n2
+   }
+
+   ```
+
+2. C++侧将cxx工具转换出来的lib.rs.h包含进来，就可以使用C++侧的接口。
+
+   ```c++
+   #include <iostream>
+   #include "build/rust/tests/test_cxx/src/lib.rs.h"
+
+   int main(int argc, const char* argv[])
+   {
+       int a = 2021;
+       int b = 4;
+       print_message_in_rust();
+       std::cout << r_return_primitive() << std::endl;
+       std::cout << r_return_shared().z << std::endl;
+       std::cout << std::string(r_return_rust_string()) << std::endl;
+       std::cout << r_return_sum(a, b) << std::endl;
+       return 0;
+   }
+   ```
+
+3. 添加构建文件BUILD.gn。rust_cxx底层调用CXX工具将lib.rs文件转换成lib.rs.h和lib.rs.cc文件，ohos_rust_static_ffi实现Rust侧源码的编译，ohos_executable实现C++侧代码的编译。
+
+   ```
+   import("//build/ohos.gni")
+   import("//build/templates/rust/rust_cxx.gni")
+
+   rust_cxx("test_cxx_exe_gen") {
+       sources = [ "src/lib.rs" ]
+   }
+
+   ohos_rust_static_ffi("test_cxx_examp_rust") {
+       sources = [ "src/lib.rs" ]
+       deps = [ "//build/rust:cxx_rustdeps" ]
+   }
+
+   ohos_executable("test_cxx_exe") {
+       sources = [ "main.cpp" ]
+       sources += get_target_outputs(":test_cxx_exe_gen")
+
+       include_dirs = [ "${target_gen_dir}" ]
+       deps = [
+       ":test_cxx_examp_rust",
+       ":test_cxx_exe_gen",
+       "//build/rust:cxx_cppdeps",
+       ]
+   }
+   ```
+
+**调测验证**
+![cpp_call_rust](./cpp_call_rust.png)
+
+
+### Rust调用C++
+
+1. 添加头文件client_blobstore.h。
+
+   ```c++
+   #ifndef BUILD_RUST_TESTS_CLIENT_BLOBSTORE_H
+   #define BUILD_RUST_TESTS_CLIENT_BLOBSTORE_H
+   #include <memory>
+   #include "third_party/rust/cxx/include/cxx.h"
+
+   namespace nsp_org {
+   namespace nsp_blobstore {
+   struct MultiBufs;
+   struct Metadata_Blob;
+
+   class client_blobstore {
+   public:
+       client_blobstore();
+       uint64_t put_buf(MultiBufs &buf) const;
+       void add_tag(uint64_t blobid, rust::Str add_tag) const;
+       Metadata_Blob get_metadata(uint64_t blobid) const;
+
+   private:
+       class impl;
+       std::shared_ptr<impl> impl;
+   };
+
+   std::unique_ptr<client_blobstore> blobstore_client_new();
+   } // namespace nsp_blobstore
+   } // namespace nsp_org
+   #endif
+   ```
+
+2. 添加cpp文件client_blobstore.cpp。
+
+   ```c++
+   #include <algorithm>
+   #include <functional>
+   #include <set>
+   #include <string>
+   #include <unordered_map>
+   #include "src/main.rs.h"
+   #include "build/rust/tests/test_cxx_rust/include/client_blobstore.h"
+
+   namespace nsp_org {
+   namespace nsp_blobstore {
+   // Toy implementation of an in-memory nsp_blobstore.
+   //
+   // In reality the implementation of client_blobstore could be a large complex C++
+   // library.
+   class client_blobstore::impl {
+       friend client_blobstore;
+       using Blob = struct {
+           std::string data;
+           std::set<std::string> tags;
+       };
+       std::unordered_map<uint64_t, Blob> blobs;
+   };
+
+   client_blobstore::client_blobstore() : impl(new class client_blobstore::impl) {}
+
+   // Upload a new blob and return a blobid that serves as a handle to the blob.
+   uint64_t client_blobstore::put_buf(MultiBufs &buf) const
+   {
+       std::string contents;
+
+       // Traverse the caller's res_chunk iterator.
+       //
+       // In reality there might be sophisticated batching of chunks and/or parallel
+       // upload implemented by the nsp_blobstore's C++ client.
+       while (true) {
+           auto res_chunk = next_chunk(buf);
+           if (res_chunk.size() == 0) {
+           break;
+           }
+           contents.append(reinterpret_cast<const char *>(res_chunk.data()), res_chunk.size());
+       }
+
+       // Insert into map and provide caller the handle.
+       auto res = std::hash<std::string> {} (contents);
+       impl->blobs[res] = {std::move(contents), {}};
+       return res;
+   }
+
+   // Add add_tag to an existing blob.
+   void client_blobstore::add_tag(uint64_t blobid, rust::Str add_tag) const
+   {
+       impl->blobs[blobid].tags.emplace(add_tag);
+   }
+
+   // Retrieve get_metadata about a blob.
+   Metadata_Blob client_blobstore::get_metadata(uint64_t blobid) const
+   {
+       Metadata_Blob get_metadata {};
+       auto blob = impl->blobs.find(blobid);
+       if (blob != impl->blobs.end()) {
+           get_metadata.size = blob->second.data.size();
+           std::for_each(blob->second.tags.cbegin(), blob->second.tags.cend(),
+               [&](auto &t) { get_metadata.tags.emplace_back(t); });
+       }
+       return get_metadata;
+   }
+
+   std::unique_ptr<client_blobstore> blobstore_client_new()
+   {
+       return std::make_unique<client_blobstore>();
+   }
+   } // namespace nsp_blobstore
+   } // namespace nsp_org
+
+   ```
+
+3. main.rs文件，在main.rs文件的ffi里面，通过宏include!将头文件client_blobstore.h引入进来，从而在Rust的main函数里面就可以通过ffi的方式调用C++的接口。
+
+   ```rust
+   //! test_cxx_rust
+   #[cxx::bridge(namespace = "nsp_org::nsp_blobstore")]
+   mod ffi {
+       // Shared structs with fields visible to both languages.
+       struct Metadata_Blob {
+           size: usize,
+           tags: Vec<String>,
+       }
+
+       // Rust types and signatures exposed to C++.
+       extern "Rust" {
+           type MultiBufs;
+
+           fn next_chunk(buf: &mut MultiBufs) -> &[u8];
+       }
+
+       // C++ types and signatures exposed to Rust.
+       unsafe extern "C++" {
+           include!("build/rust/tests/test_cxx_rust/include/client_blobstore.h");
+
+           type client_blobstore;
+
+           fn blobstore_client_new() -> UniquePtr<client_blobstore>;
+           fn put_buf(&self, parts: &mut MultiBufs) -> u64;
+           fn add_tag(&self, blobid: u64, add_tag: &str);
+           fn get_metadata(&self, blobid: u64) -> Metadata_Blob;
+       }
+   }
+
+   // An iterator over contiguous chunks of a discontiguous file object.
+   //
+   // Toy implementation uses a Vec<Vec<u8>> but in reality this might be iterating
+   // over some more complex Rust data structure like a rope, or maybe loading
+   // chunks lazily from somewhere.
+   /// pub struct MultiBufs
+   pub struct MultiBufs {
+       chunks: Vec<Vec<u8>>,
+       pos: usize,
+   }
+   /// pub fn next_chunk
+   pub fn next_chunk(buf: &mut MultiBufs) -> &[u8] {
+       let next = buf.chunks.get(buf.pos);
+       buf.pos += 1;
+       next.map_or(&[], Vec::as_slice)
+   }
+
+   /// fn main()
+   fn main() {
+       let client = ffi::blobstore_client_new();
+
+       // Upload a blob.
+       let chunks = vec![b"fearless".to_vec(), b"concurrency".to_vec()];
+       let mut buf = MultiBufs { chunks, pos: 0 };
+       let blobid = client.put_buf(&mut buf);
+       println!("This is a test for Rust call cpp:");
+       println!("blobid = {}", blobid);
+
+       // Add a add_tag.
+       client.add_tag(blobid, "rust");
+
+       // Read back the tags.
+       let get_metadata = client.get_metadata(blobid);
+       println!("tags = {:?}", get_metadata.tags);
+   }
+   ```
+
+4. 添加构建文件BUILD.gn。使用CXX将main.rs转换成lib.rs.h和lib.rs.cc，同时将产物作为test_cxx_rust_staticlib的源码，编译Rust源码main.rs并将test_cxx_rust_staticlib依赖进来。
+
+   ```
+   import("//build/ohos.gni")
+
+   rust_cxx("test_cxx_rust_gen") {
+     sources = [ "src/main.rs" ]
+   }
+
+   ohos_static_library("test_cxx_rust_staticlib") {
+     sources = [ "src/client_blobstore.cpp" ]
+     sources += get_target_outputs(":test_cxx_rust_gen")
+     include_dirs = [
+       "${target_gen_dir}",
+       "//third_party/rust/cxx/v1/crate/include",
+       "include",
+     ]
+     deps = [
+       ":test_cxx_rust_gen",
+       "//build/rust:cxx_cppdeps",
+     ]
+   }
+
+   ohos_rust_executable("test_cxx_rust") {
+     sources = [ "src/main.rs" ]
+     deps = [
+       ":test_cxx_rust_staticlib",
+       "//build/rust:cxx_rustdeps",
+     ]
+   }
+   ```
+
+**调测验证**
+![rust_call_cpp](./rust_call_cpp.png)
 
 <br>
 
-## 使用指导
 
-建议初学者参考CXX官网指导 **<https://cxx.rs>**，了解具体CXX的使用方法，然后在build仓的rust/test目录下具体使用CXX来实现接口转换。其中test_cxx介绍了C++调用rust的示例，test_cxx_rust介绍了rust调用C++的示例。
-
-<br>
-
-
-## 细节
-
-FFI边界的语言涉及3种类型的字段：
-
-- **共享结构**  
-该字段对两种语言都是可见的。
-
-- **不透明类型**  
-该字段对另一种语言是保密的。这些类型不能通过FFI的值来传递，而只能在间接传递，比如一个引用`&`，一个Rust`Box`，或者一个`UniquePtr`。可以是一个类型别名可以是一个类型别名，用于任意复杂的通用语言特定类型，这取决于自己写的用例。
-
-- **函数**  
-在任一语言中实现，可从另一语言中调用。
-
-<br>
 
 ## 与bindgen的对比
 
@@ -94,20 +383,6 @@ $ cxxbridge src/main.rs > path/to/mybridge.cc
 
 <br>
 
-## 安全性
-
-确保安全性需要考虑以下内容：
-
-- 设计让配对代码生成器一起工作，控制FFI边界的两边。通常情况下，在Rust中编写自己的`extern "C"`块是是不安全的，因为Rust编译器没有办法知道每个开发者的签名是否真的与别的语言实现的签名相匹配。有了CXX，就可以实现这种可见性，并且知道另一边是什么的内容。
-
-- 静态分析可以检测并防止不应该以值传递的类型从C++到Rust中以值传递的类型，例如，因为它们可能包含内部指针，而这些指针会被Rust的移动行为所破坏。
-
-- 令人惊讶的是，Rust中的结构和C++中的结构的布局/字段/对齐方式/一切都完全相同、但在通过值传递时，仍然不是相同的ABI。这是一个长期存在的bindgen的错误，导致看起来正确的代码出现segfaults([issue_778](https://github.com/rust-lang/rust-bindgen/issues/778))。CXX知道这一点，并且可以插入必要的零成本的解决方法，所以请继续并毫无顾虑地传递开发者写的结构。这可以通过拥有边界的两边，而不是只有一边。
-
-- 模板实例化：例如，为了在Rust中展示一个`UniquePtr<T>`类型，该类型由一个真正的C++的`unique_ptr`支持。为了在Rust中展示一个由真正的C++`unique_ptr`的指针类型，可以使用Rust trait来将行为连接到由别的语言执行的模板实例上。
-
-
-<br>
 
 ## 内置类型
 
@@ -147,8 +422,8 @@ $ cxxbridge src/main.rs > path/to/mybridge.cc
 
 <br>
 
-## 剩余工作
+## 开发者贡献
 
-当前CXX工具还没有达到普遍使用阶段，在使用该工具的过程中有任何问题欢迎开发者在社区反馈。
+当前CXX工具还没有达到普遍使用阶段，在使用该工具的过程中有任何问题欢迎开发者在社区issue中反馈。
 
 <br>
