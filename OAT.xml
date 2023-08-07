@@ -59,6 +59,8 @@ Note:If the text contains special characters|please escape them according to the
         <filefilterlist>
             <filefilter name="binaryFileTypePolicyFilter" desc="二进制文件校验策略的过滤条件" >
                 <filteritem type="filepath" name="book/src/cxx.png" desc="png文件不涉及license"/>
+                <filteritem type="filepath" name="cpp_call_rust.png" desc="png文件不涉及license"/>
+                <filteritem type="filepath" name="rust_call_cpp.png" desc="png文件不涉及license"/>
             </filefilter>
         </filefilterlist>
     </oatconfig>
