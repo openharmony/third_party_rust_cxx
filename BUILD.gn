@@ -34,8 +34,8 @@ ohos_cargo_crate("lib") {
 }
 
 ohos_static_library("cxx_cppdeps") {
-  part_name = "common"
-  subsystem_name = "common"
+  part_name = "build_framework"
+  subsystem_name = "build"
   defines = [ "RUST_CXX_NO_EXCEPTIONS" ]
   sources = [
     "//third_party/rust/crates/cxx/include/cxx.h",
