@@ -33,10 +33,15 @@ ohos_cargo_crate("lib") {
   build_sources = [ "build.rs" ]
 }
 
+config("cxx_cppdeps_header_config") {
+  include_dirs = [ "include" ]
+}
+
 ohos_static_library("cxx_cppdeps") {
   part_name = "build_framework"
   subsystem_name = "build"
   defines = [ "RUST_CXX_NO_EXCEPTIONS" ]
+  public_configs = [ ":cxx_cppdeps_header_config" ]
   sources = [
     "//third_party/rust/crates/cxx/include/cxx.h",
     "//third_party/rust/crates/cxx/src/cxx.cc",
