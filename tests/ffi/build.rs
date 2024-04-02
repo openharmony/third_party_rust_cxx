@@ -15,7 +15,4 @@ fn main() {
         build.define("CXX_TEST_INSTANTIATIONS", None);
     }
     build.compile("cxx-test-suite");
-
-    println!("cargo:rerun-if-changed=tests.cc");
-    println!("cargo:rerun-if-changed=tests.h");
 }

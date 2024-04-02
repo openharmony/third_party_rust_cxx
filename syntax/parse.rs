@@ -489,7 +489,11 @@ fn parse_extern_type(
     let type_token = foreign_type.type_token;
     let visibility = visibility_pub(&foreign_type.vis, type_token.span);
     let name = pair(namespace, &foreign_type.ident, cxx_name, rust_name);
-    let generics = extern_type_lifetimes(cx, foreign_type.generics);
+    let generics = Lifetimes {
+        lt_token: None,
+        lifetimes: Punctuated::new(),
+        gt_token: None,
+    };
     let colon_token = None;
     let bounds = Vec::new();
     let semi_token = foreign_type.semi_token;
@@ -607,27 +611,7 @@ fn parse_extern_fn(
                     });
                     continue;
                 }
-                if let Some(colon_token) = arg.colon_token {
-                    let ty = parse_type(&arg.ty)?;
-                    if let Type::Ref(reference) = ty {
-                        if let Type::Ident(ident) = reference.inner {
-                            receiver = Some(Receiver {
-                                pinned: reference.pinned,
-                                ampersand: reference.ampersand,
-                                lifetime: reference.lifetime,
-                                mutable: reference.mutable,
-                                var: Token![self](ident.rust.span()),
-                                colon_token,
-                                ty: ident,
-                                shorthand: false,
-                                pin_tokens: reference.pin_tokens,
-                                mutability: reference.mutability,
-                            });
-                            continue;
-                        }
-                    }
-                }
-                return Err(Error::new_spanned(arg, "unsupported method receiver"));
+                return Err(Error::new_spanned(arg, "unsupported signature"));
             }
             FnArg::Typed(arg) => {
                 let ident = match arg.pat.as_ref() {
@@ -638,24 +622,45 @@ fn parse_extern_fn(
                     _ => return Err(Error::new_spanned(arg, "unsupported signature")),
                 };
                 let ty = parse_type(&arg.ty)?;
-                let cfg = CfgExpr::Unconditional;
-                let doc = Doc::new();
-                let attrs = OtherAttrs::none();
-                let visibility = Token![pub](ident.span());
-                let name = pair(Namespace::default(), &ident, None, None);
-                let colon_token = arg.colon_token;
-                args.push_value(Var {
-                    cfg,
-                    doc,
-                    attrs,
-                    visibility,
-                    name,
-                    colon_token,
-                    ty,
-                });
-                if let Some(comma) = comma {
-                    args.push_punct(*comma);
+                if ident != "self" {
+                    let cfg = CfgExpr::Unconditional;
+                    let doc = Doc::new();
+                    let attrs = OtherAttrs::none();
+                    let visibility = Token![pub](ident.span());
+                    let name = pair(Namespace::default(), &ident, None, None);
+                    let colon_token = arg.colon_token;
+                    args.push_value(Var {
+                        cfg,
+                        doc,
+                        attrs,
+                        visibility,
+                        name,
+                        colon_token,
+                        ty,
+                    });
+                    if let Some(comma) = comma {
+                        args.push_punct(*comma);
+                    }
+                    continue;
                 }
+                if let Type::Ref(reference) = ty {
+                    if let Type::Ident(ident) = reference.inner {
+                        receiver = Some(Receiver {
+                            pinned: reference.pinned,
+                            ampersand: reference.ampersand,
+                            lifetime: reference.lifetime,
+                            mutable: reference.mutable,
+                            var: Token![self](ident.rust.span()),
+                            colon_token: arg.colon_token,
+                            ty: ident,
+                            shorthand: false,
+                            pin_tokens: reference.pin_tokens,
+                            mutability: reference.mutability,
+                        });
+                        continue;
+                    }
+                }
+                return Err(Error::new_spanned(arg, "unsupported method receiver"));
             }
         }
     }
@@ -751,45 +756,6 @@ fn parse_extern_verbatim_type(
     let type_token: Token![type] = input.parse()?;
     let ident: Ident = input.parse()?;
     let generics: Generics = input.parse()?;
-    let lifetimes = extern_type_lifetimes(cx, generics);
-    let lookahead = input.lookahead1();
-    if lookahead.peek(Token![=]) {
-        // type Alias = crate::path::to::Type;
-        parse_type_alias(
-            cx,
-            unparsed_attrs,
-            visibility,
-            type_token,
-            ident,
-            lifetimes,
-            input,
-            lang,
-            extern_block_cfg,
-            namespace,
-            attrs,
-        )
-    } else if lookahead.peek(Token![:]) {
-        // type Opaque: Bound2 + Bound2;
-        parse_extern_type_bounded(
-            cx,
-            unparsed_attrs,
-            visibility,
-            type_token,
-            ident,
-            lifetimes,
-            input,
-            lang,
-            trusted,
-            extern_block_cfg,
-            namespace,
-            attrs,
-        )
-    } else {
-        Err(lookahead.error())
-    }
-}
-
-fn extern_type_lifetimes(cx: &mut Errors, generics: Generics) -> Lifetimes {
     let mut lifetimes = Punctuated::new();
     let mut has_unsupported_generic_param = false;
     for pair in generics.params.into_pairs() {
@@ -822,10 +788,45 @@ fn extern_type_lifetimes(cx: &mut Errors, generics: Generics) -> Lifetimes {
             }
         }
     }
-    Lifetimes {
+    let lifetimes = Lifetimes {
         lt_token: generics.lt_token,
         lifetimes,
         gt_token: generics.gt_token,
+    };
+    let lookahead = input.lookahead1();
+    if lookahead.peek(Token![=]) {
+        // type Alias = crate::path::to::Type;
+        parse_type_alias(
+            cx,
+            unparsed_attrs,
+            visibility,
+            type_token,
+            ident,
+            lifetimes,
+            input,
+            lang,
+            extern_block_cfg,
+            namespace,
+            attrs,
+        )
+    } else if lookahead.peek(Token![:]) || lookahead.peek(Token![;]) {
+        // type Opaque: Bound2 + Bound2;
+        parse_extern_type_bounded(
+            cx,
+            unparsed_attrs,
+            visibility,
+            type_token,
+            ident,
+            lifetimes,
+            input,
+            lang,
+            trusted,
+            extern_block_cfg,
+            namespace,
+            attrs,
+        )
+    } else {
+        Err(lookahead.error())
     }
 }
 
@@ -927,7 +928,9 @@ fn parse_extern_type_bounded(
                 } else {
                     false
                 } => {}
-                bound => cx.error(bound, "unsupported trait"),
+                bound @ TypeParamBound::Trait(_) | bound @ TypeParamBound::Lifetime(_) => {
+                    cx.error(bound, "unsupported trait");
+                }
             }
 
             let lookahead = input.lookahead1();
@@ -1001,7 +1004,7 @@ fn parse_impl(cx: &mut Errors, imp: ItemImpl) -> Result<Api> {
 
     if !imp.items.is_empty() {
         let mut span = Group::new(Delimiter::Brace, TokenStream::new());
-        span.set_span(imp.brace_token.span.join());
+        span.set_span(imp.brace_token.span);
         return Err(Error::new_spanned(span, "expected an empty impl block"));
     }
 
@@ -1148,7 +1151,7 @@ fn parse_type(ty: &RustType) -> Result<Type> {
         RustType::Path(ty) => parse_type_path(ty),
         RustType::Array(ty) => parse_type_array(ty),
         RustType::BareFn(ty) => parse_type_fn(ty),
-        RustType::Tuple(ty) if ty.elems.is_empty() => Ok(Type::Void(ty.paren_token.span.join())),
+        RustType::Tuple(ty) if ty.elems.is_empty() => Ok(Type::Void(ty.paren_token.span)),
         _ => Err(Error::new_spanned(ty, "unsupported type")),
     }
 }
@@ -1384,7 +1387,7 @@ fn parse_type_fn(ty: &TypeBareFn) -> Result<Type> {
             let (ident, colon_token) = match &arg.name {
                 Some((ident, colon_token)) => (ident.clone(), *colon_token),
                 None => {
-                    let fn_span = ty.paren_token.span.join();
+                    let fn_span = ty.paren_token.span;
                     let ident = format_ident!("arg{}", i, span = fn_span);
                     let colon_token = Token![:](fn_span);
                     (ident, colon_token)
@@ -1467,7 +1470,8 @@ fn parse_return_type(
 
 fn visibility_pub(vis: &Visibility, inherited: Span) -> Token![pub] {
     Token![pub](match vis {
-        Visibility::Public(vis) => vis.span,
+        Visibility::Public(vis) => vis.pub_token.span,
+        Visibility::Crate(vis) => vis.crate_token.span,
         Visibility::Restricted(vis) => vis.pub_token.span,
         Visibility::Inherited => inherited,
     })

@@ -1,14 +1,6 @@
-export_file(
-    name = ".clippy.toml",
-    visibility = ["toolchains//:rust"],
-)
-
 rust_library(
     name = "cxx",
     srcs = glob(["src/**/*.rs"]),
-    doc_deps = [
-        ":cxx-build",
-    ],
     edition = "2018",
     features = [
         "alloc",
@@ -17,23 +9,19 @@ rust_library(
     visibility = ["PUBLIC"],
     deps = [
         ":core",
-        ":cxxbridge-macro",
+        ":macro",
     ],
 )
 
-alias(
-    name = "codegen",
-    actual = ":cxxbridge",
-    visibility = ["PUBLIC"],
-)
-
 rust_binary(
-    name = "cxxbridge",
+    name = "codegen",
     srcs = glob(["gen/cmd/src/**/*.rs"]) + [
         "gen/cmd/src/gen",
         "gen/cmd/src/syntax",
     ],
+    crate = "cxxbridge",
     edition = "2018",
+    visibility = ["PUBLIC"],
     deps = [
         "//third-party:clap",
         "//third-party:codespan-reporting",
@@ -49,15 +37,15 @@ cxx_library(
     exported_headers = {
         "cxx.h": "include/cxx.h",
     },
+    exported_linker_flags = ["-lstdc++"],
     header_namespace = "rust",
-    preferred_linkage = "static",
     visibility = ["PUBLIC"],
 )
 
 rust_library(
-    name = "cxxbridge-macro",
+    name = "macro",
     srcs = glob(["macro/src/**/*.rs"]) + ["macro/src/syntax"],
-    doctests = False,
+    crate = "cxxbridge_macro",
     edition = "2018",
     proc_macro = True,
     deps = [
@@ -68,13 +56,13 @@ rust_library(
 )
 
 rust_library(
-    name = "cxx-build",
+    name = "build",
     srcs = glob(["gen/build/src/**/*.rs"]) + [
         "gen/build/src/gen",
         "gen/build/src/syntax",
     ],
-    doctests = False,
     edition = "2018",
+    visibility = ["PUBLIC"],
     deps = [
         "//third-party:cc",
         "//third-party:codespan-reporting",
@@ -87,7 +75,7 @@ rust_library(
 )
 
 rust_library(
-    name = "cxx-gen",
+    name = "lib",
     srcs = glob(["gen/lib/src/**/*.rs"]) + [
         "gen/lib/src/gen",
         "gen/lib/src/syntax",

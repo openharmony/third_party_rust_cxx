@@ -43,8 +43,9 @@ rust_library(
         "noclippy",
         "norustfmt",
     ],
-    version = "4.3.0",
+    version = "4.1.4",
     deps = [
-        "@vendor__clap_builder-4.3.0//:clap_builder",
+        "@vendor__bitflags-1.3.2//:bitflags",
+        "@vendor__clap_lex-0.3.1//:clap_lex",
     ],
 )

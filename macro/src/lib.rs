@@ -29,6 +29,8 @@
     clippy::wrong_self_convention
 )]
 
+extern crate proc_macro;
+
 mod derive;
 mod expand;
 mod generics;

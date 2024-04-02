@@ -20,7 +20,7 @@ ohos_cargo_crate("lib") {
 
   sources = [ "src/lib.rs" ]
   edition = "2018"
-  cargo_pkg_version = "1.0.97"
+  cargo_pkg_version = "1.0.91"
   cargo_pkg_authors = "David Tolnay <dtolnay@gmail.com>"
   cargo_pkg_name = "cxx"
   cargo_pkg_description = "Safe interop between Rust and C++"
