@@ -7,7 +7,6 @@ on:
     paths:
       - book/**
       - .github/workflows/site.yml
-  workflow_dispatch:
 
 jobs:
   deploy:

@@ -2,25 +2,22 @@ def rust_cxx_bridge(
         name: str.type,
         src: str.type,
         deps: [str.type] = []):
-    native.export_file(
+    native.genrule(
         name = "%s/header" % name,
-        src = ":%s/generated[generated.h]" % name,
         out = src + ".h",
+        cmd = "cp $(location :%s/generated)/generated.h ${OUT}" % name,
     )
 
-    native.export_file(
+    native.genrule(
         name = "%s/source" % name,
-        src = ":%s/generated[generated.cc]" % name,
         out = src + ".cc",
+        cmd = "cp $(location :%s/generated)/generated.cc ${OUT}" % name,
     )
 
     native.genrule(
         name = "%s/generated" % name,
         srcs = [src],
-        outs = {
-            "generated.cc": ["generated.cc"],
-            "generated.h": ["generated.h"],
-        },
+        out = ".",
         cmd = "$(exe //:codegen) ${SRCS} -o ${OUT}/generated.h -o ${OUT}/generated.cc",
         type = "cxxbridge",
     )

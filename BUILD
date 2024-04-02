@@ -16,17 +16,12 @@ rust_library(
     deps = [":core-lib"],
 )
 
-alias(
-    name = "codegen",
-    actual = ":cxxbridge",
-    visibility = ["//visibility:public"],
-)
-
 rust_binary(
-    name = "cxxbridge",
+    name = "codegen",
     srcs = glob(["gen/cmd/src/**/*.rs"]),
     data = ["gen/cmd/src/gen/include/cxx.h"],
     edition = "2018",
+    visibility = ["//visibility:public"],
     deps = [
         "//third-party:clap",
         "//third-party:codespan-reporting",
@@ -62,10 +57,11 @@ rust_proc_macro(
 )
 
 rust_library(
-    name = "cxx-build",
+    name = "build",
     srcs = glob(["gen/build/src/**/*.rs"]),
     data = ["gen/build/src/gen/include/cxx.h"],
     edition = "2018",
+    visibility = ["//visibility:public"],
     deps = [
         "//third-party:cc",
         "//third-party:codespan-reporting",
@@ -78,7 +74,7 @@ rust_library(
 )
 
 rust_library(
-    name = "cxx-gen",
+    name = "lib",
     srcs = glob(["gen/lib/src/**/*.rs"]),
     data = ["gen/lib/src/gen/include/cxx.h"],
     edition = "2018",

@@ -10,7 +10,7 @@
 
 - [Multi-language build system options](building.md)
     - [Cargo](build/cargo.md)
-    - [Bazel or Buck2](build/bazel.md)
+    - [Bazel](build/bazel.md)
     - [CMake](build/cmake.md)
     - [More...](build/other.md)
 
