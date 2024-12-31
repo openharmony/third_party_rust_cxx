@@ -31,6 +31,4 @@ ohos_cargo_crate("cxxbridge") {
     "//third_party/rust/crates/quote:lib",
     "//third_party/rust/crates/syn:lib",
   ]
-  part_name = "rust_cxx"
-  subsystem_name = "thirdparty"
 }

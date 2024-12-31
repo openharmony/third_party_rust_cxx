@@ -13,7 +13,7 @@
 
 import("//build/ohos.gni")
 
-ohos_cargo_crate("macro_lib") {
+ohos_cargo_crate("lib") {
   crate_name = "cxxbridge_macro"
   crate_type = "proc-macro"
   visibility = [ "//third_party/rust/crates/*" ]
@@ -30,8 +30,4 @@ ohos_cargo_crate("macro_lib") {
     "//third_party/rust/crates/quote:lib",
     "//third_party/rust/crates/syn:lib",
   ]
-  build_root = "build.rs"
-  build_sources = [ "build.rs" ]
-  part_name = "rust_cxx"
-  subsystem_name = "thirdparty"
 }
