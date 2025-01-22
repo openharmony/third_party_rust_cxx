@@ -1,11 +1,16 @@
 [
   {
     "Name": "cxx",
-    "License": "Apache License 2.0, MIT",
-    "License File": "LICENSE-APACHE, LICENSE-MIT",
+    "License": "Apache-2.0",
+    "License File": "LICENSE-APACHE",
     "Version Number": "1.0.97",
     "Owner": "fangting12@huawei.com",
     "Upstream URL": "https://github.com/dtolnay/cxx",
-    "Description": "A Rust library that provides a safe and easy way to call C++ code from Rust."
+    "Description": "A Rust library that provides a safe and easy way to call C++ code from Rust.",
+    "Dependencies": [
+      "unicode-width",
+      "link-cplusplus",
+      "codespan-reporting"
+    ]
   }
 ]
