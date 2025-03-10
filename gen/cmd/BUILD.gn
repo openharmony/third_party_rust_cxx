@@ -13,24 +13,26 @@
 
 import("//build/ohos.gni")
 
-ohos_cargo_crate("cxxbridge") {
-  crate_type = "bin"
-  crate_root = "src/main.rs"
+if (host_os != "linux" || host_cpu != "arm64") {
+  ohos_cargo_crate("cxxbridge") {
+    crate_type = "bin"
+    crate_root = "src/main.rs"
 
-  sources = [ "src/main.rs" ]
-  edition = "2018"
-  cargo_pkg_version = "1.0.97"
-  cargo_pkg_authors = "David Tolnay <dtolnay@gmail.com>"
-  cargo_pkg_name = "cxxbridge-cmd"
-  cargo_pkg_description =
-      "C++ code generator for integrating `cxx` crate into a non-Cargo build."
-  deps = [
-    "//third_party/rust/crates/clap:lib",
-    "//third_party/rust/crates/codespan/codespan-reporting:lib",
-    "//third_party/rust/crates/proc-macro2:lib",
-    "//third_party/rust/crates/quote:lib",
-    "//third_party/rust/crates/syn:lib",
-  ]
-  part_name = "rust_cxx"
-  subsystem_name = "thirdparty"
+    sources = [ "src/main.rs" ]
+    edition = "2018"
+    cargo_pkg_version = "1.0.97"
+    cargo_pkg_authors = "David Tolnay <dtolnay@gmail.com>"
+    cargo_pkg_name = "cxxbridge-cmd"
+    cargo_pkg_description =
+        "C++ code generator for integrating `cxx` crate into a non-Cargo build."
+    deps = [
+      "//third_party/rust/crates/clap:lib",
+      "//third_party/rust/crates/codespan/codespan-reporting:lib",
+      "//third_party/rust/crates/proc-macro2:lib",
+      "//third_party/rust/crates/quote:lib",
+      "//third_party/rust/crates/syn:lib",
+    ]
+    part_name = "rust_cxx"
+    subsystem_name = "thirdparty"
+  }
 }
