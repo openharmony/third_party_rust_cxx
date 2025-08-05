@@ -16,11 +16,7 @@
         "standard"
       ],
       "deps": {
-        "components": [
-            "rust_proc_macro2",
-            "rust_quote",
-            "rust_syn"
-        ]
+        "components": []
       },
       "build": {
             "sub_component": [],
