@@ -1,18 +1,17 @@
 use crate::syntax::set::UnorderedSet as Set;
-use once_cell::sync::OnceCell;
-use std::sync::{Mutex, PoisonError};
+use std::sync::{Mutex, OnceLock, PoisonError};
 
 #[derive(Copy, Clone, Default)]
-pub struct InternedString(&'static str);
+pub(crate) struct InternedString(&'static str);
 
 impl InternedString {
-    pub fn str(self) -> &'static str {
+    pub(crate) fn str(self) -> &'static str {
         self.0
     }
 }
 
-pub fn intern(s: &str) -> InternedString {
-    static INTERN: OnceCell<Mutex<Set<&'static str>>> = OnceCell::new();
+pub(crate) fn intern(s: &str) -> InternedString {
+    static INTERN: OnceLock<Mutex<Set<&'static str>>> = OnceLock::new();
 
     let mut set = INTERN
         .get_or_init(|| Mutex::new(Set::new()))

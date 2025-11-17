@@ -360,7 +360,7 @@ CXX-build = "1.0"
 fn main() {
     CXX_build::bridge("src/main.rs")  // returns a cc::Build
         .file("src/demo.cc")
-        .flag_if_supported("-std=C++11")
+        .std("c++11")
         .compile("cxxbridge-demo");
 
     println!("cargo:rerun-if-changed=src/main.rs");
