@@ -85,10 +85,10 @@ fn write_data_structures<'a>(out: &mut OutFile<'a>, apis: &'a [Api]) {
         match api {
             Api::Struct(strct) if !structs_written.contains(&strct.name.rust) => {
                 for next in &mut toposorted_structs {
-                    if !out.types.cxx.contains(&strct.name.rust) {
+                    if !out.types.cxx.contains(&next.name.rust) {
                         out.next_section();
                         let methods = methods_for_type
-                            .get(&strct.name.rust)
+                            .get(&next.name.rust)
                             .map(Vec::as_slice)
                             .unwrap_or_default();
                         write_struct(out, next, methods);
@@ -129,7 +129,7 @@ fn write_data_structures<'a>(out: &mut OutFile<'a>, apis: &'a [Api]) {
     for api in apis {
         if let Api::TypeAlias(ety) = api {
             if let Some(reasons) = out.types.required_trivial.get(&ety.name.rust) {
-                check_trivial_extern_type(out, ety, reasons)
+                check_trivial_extern_type(out, ety, reasons);
             }
         }
     }
@@ -205,13 +205,12 @@ fn pick_includes_and_builtins(out: &mut OutFile, apis: &[Api]) {
     for ty in out.types {
         match ty {
             Type::Ident(ident) => match Atom::from(&ident.rust) {
-                Some(U8) | Some(U16) | Some(U32) | Some(U64) | Some(I8) | Some(I16) | Some(I32)
-                | Some(I64) => out.include.cstdint = true,
+                Some(U8 | U16 | U32 | U64 | I8 | I16 | I32 | I64) => out.include.cstdint = true,
                 Some(Usize) => out.include.cstddef = true,
                 Some(Isize) => out.builtin.rust_isize = true,
                 Some(CxxString) => out.include.string = true,
                 Some(RustString) => out.builtin.rust_string = true,
-                Some(Bool) | Some(Char) | Some(F32) | Some(F64) | None => {}
+                Some(Bool | Char | F32 | F64) | None => {}
             },
             Type::RustBox(_) => out.builtin.rust_box = true,
             Type::RustVec(_) => out.builtin.rust_vec = true,
@@ -848,7 +847,7 @@ fn write_cxx_function_shim<'a>(out: &mut OutFile<'a>, efn: &'a ExternFn) {
     match &efn.ret {
         Some(Type::RustBox(_)) => write!(out, ".into_raw()"),
         Some(Type::UniquePtr(_)) => write!(out, ".release()"),
-        Some(Type::Str(_)) | Some(Type::SliceRef(_)) if !indirect_return => write!(out, ")"),
+        Some(Type::Str(_) | Type::SliceRef(_)) if !indirect_return => write!(out, ")"),
         _ => {}
     }
     if indirect_return {
@@ -1114,10 +1113,10 @@ fn write_rust_function_shim_impl(
     }
     write!(out, ")");
     if !indirect_return {
-        if let Some(ret) = &sig.ret {
-            if let Type::RustBox(_) | Type::UniquePtr(_) | Type::Str(_) | Type::SliceRef(_) = ret {
-                write!(out, ")");
-            }
+        if let Some(Type::RustBox(_) | Type::UniquePtr(_) | Type::Str(_) | Type::SliceRef(_)) =
+            &sig.ret
+        {
+            write!(out, ")");
         }
     }
     writeln!(out, ";");
@@ -1182,7 +1181,7 @@ fn write_indirect_return_type_space(out: &mut OutFile, ty: &Type) {
 
 fn write_extern_return_type_space(out: &mut OutFile, ty: &Option<Type>) {
     match ty {
-        Some(Type::RustBox(ty)) | Some(Type::UniquePtr(ty)) => {
+        Some(Type::RustBox(ty) | Type::UniquePtr(ty)) => {
             write_type_space(out, &ty.inner);
             write!(out, "*");
         }
@@ -1193,7 +1192,7 @@ fn write_extern_return_type_space(out: &mut OutFile, ty: &Option<Type>) {
             }
             write!(out, "*");
         }
-        Some(Type::Str(_)) | Some(Type::SliceRef(_)) => {
+        Some(Type::Str(_) | Type::SliceRef(_)) => {
             out.builtin.repr_fat = true;
             write!(out, "::rust::repr::Fat ");
         }
@@ -1672,6 +1671,7 @@ fn write_unique_ptr_common(out: &mut OutFile, ty: UniquePtr) {
         "static_assert(alignof(::std::unique_ptr<{}>) == alignof(void *), \"\");",
         inner,
     );
+
     begin_function_definition(out);
     writeln!(
         out,
@@ -1680,6 +1680,7 @@ fn write_unique_ptr_common(out: &mut OutFile, ty: UniquePtr) {
     );
     writeln!(out, "  ::new (ptr) ::std::unique_ptr<{}>();", inner);
     writeln!(out, "}}");
+
     if can_construct_from_value {
         out.builtin.maybe_uninit = true;
         begin_function_definition(out);
@@ -1697,6 +1698,7 @@ fn write_unique_ptr_common(out: &mut OutFile, ty: UniquePtr) {
         writeln!(out, "  return uninit;");
         writeln!(out, "}}");
     }
+
     begin_function_definition(out);
     writeln!(
         out,
@@ -1705,6 +1707,7 @@ fn write_unique_ptr_common(out: &mut OutFile, ty: UniquePtr) {
     );
     writeln!(out, "  ::new (ptr) ::std::unique_ptr<{}>(raw);", inner);
     writeln!(out, "}}");
+
     begin_function_definition(out);
     writeln!(
         out,
@@ -1713,6 +1716,7 @@ fn write_unique_ptr_common(out: &mut OutFile, ty: UniquePtr) {
     );
     writeln!(out, "  return ptr.get();");
     writeln!(out, "}}");
+
     begin_function_definition(out);
     writeln!(
         out,
@@ -1721,6 +1725,7 @@ fn write_unique_ptr_common(out: &mut OutFile, ty: UniquePtr) {
     );
     writeln!(out, "  return ptr.release();");
     writeln!(out, "}}");
+
     begin_function_definition(out);
     writeln!(
         out,
@@ -1765,6 +1770,7 @@ fn write_shared_ptr(out: &mut OutFile, key: NamedImplKey) {
         "static_assert(alignof(::std::shared_ptr<{}>) == alignof(void *), \"\");",
         inner,
     );
+
     begin_function_definition(out);
     writeln!(
         out,
@@ -1773,6 +1779,7 @@ fn write_shared_ptr(out: &mut OutFile, key: NamedImplKey) {
     );
     writeln!(out, "  ::new (ptr) ::std::shared_ptr<{}>();", inner);
     writeln!(out, "}}");
+
     if can_construct_from_value {
         out.builtin.maybe_uninit = true;
         begin_function_definition(out);
@@ -1790,6 +1797,7 @@ fn write_shared_ptr(out: &mut OutFile, key: NamedImplKey) {
         writeln!(out, "  return uninit;");
         writeln!(out, "}}");
     }
+
     begin_function_definition(out);
     writeln!(
         out,
@@ -1798,6 +1806,7 @@ fn write_shared_ptr(out: &mut OutFile, key: NamedImplKey) {
     );
     writeln!(out, "  ::new (ptr) ::std::shared_ptr<{}>(self);", inner);
     writeln!(out, "}}");
+
     begin_function_definition(out);
     writeln!(
         out,
@@ -1806,6 +1815,7 @@ fn write_shared_ptr(out: &mut OutFile, key: NamedImplKey) {
     );
     writeln!(out, "  return self.get();");
     writeln!(out, "}}");
+
     begin_function_definition(out);
     writeln!(
         out,
@@ -1834,6 +1844,8 @@ fn write_weak_ptr(out: &mut OutFile, key: NamedImplKey) {
         "static_assert(alignof(::std::weak_ptr<{}>) == alignof(void *), \"\");",
         inner,
     );
+
+    begin_function_definition(out);
     writeln!(
         out,
         "void cxxbridge1$weak_ptr${}$null(::std::weak_ptr<{}> *ptr) noexcept {{",
@@ -1841,6 +1853,7 @@ fn write_weak_ptr(out: &mut OutFile, key: NamedImplKey) {
     );
     writeln!(out, "  ::new (ptr) ::std::weak_ptr<{}>();", inner);
     writeln!(out, "}}");
+
     begin_function_definition(out);
     writeln!(
         out,
@@ -1849,6 +1862,7 @@ fn write_weak_ptr(out: &mut OutFile, key: NamedImplKey) {
     );
     writeln!(out, "  ::new (ptr) ::std::weak_ptr<{}>(self);", inner);
     writeln!(out, "}}");
+
     begin_function_definition(out);
     writeln!(
         out,
@@ -1857,6 +1871,7 @@ fn write_weak_ptr(out: &mut OutFile, key: NamedImplKey) {
     );
     writeln!(out, "  ::new (weak) ::std::weak_ptr<{}>(shared);", inner);
     writeln!(out, "}}");
+
     begin_function_definition(out);
     writeln!(
         out,
@@ -1869,6 +1884,7 @@ fn write_weak_ptr(out: &mut OutFile, key: NamedImplKey) {
         inner,
     );
     writeln!(out, "}}");
+
     begin_function_definition(out);
     writeln!(
         out,
@@ -1888,6 +1904,16 @@ fn write_cxx_vector(out: &mut OutFile, key: NamedImplKey) {
     out.include.utility = true;
     out.builtin.destroy = true;
 
+    begin_function_definition(out);
+    writeln!(
+        out,
+        "::std::vector<{}> *cxxbridge1$std$vector${}$new() noexcept {{",
+        inner, instance,
+    );
+    writeln!(out, "  return new ::std::vector<{}>();", inner);
+    writeln!(out, "}}");
+
+    begin_function_definition(out);
     writeln!(
         out,
         "::std::size_t cxxbridge1$std$vector${}$size(::std::vector<{}> const &s) noexcept {{",

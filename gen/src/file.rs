@@ -4,20 +4,21 @@ use syn::parse::discouraged::Speculative;
 use syn::parse::{Error, Parse, ParseStream, Result};
 use syn::{braced, Attribute, Ident, Item, Meta, Token, Visibility};
 
-pub struct File {
+pub(crate) struct File {
     pub modules: Vec<Module>,
 }
 
 impl Parse for File {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut modules = Vec::new();
-        input.call(Attribute::parse_inner)?;
         parse(input, &mut modules)?;
         Ok(File { modules })
     }
 }
 
 fn parse(input: ParseStream, modules: &mut Vec<Module>) -> Result<()> {
+    input.call(Attribute::parse_inner)?;
+
     while !input.is_empty() {
         let mut cxx_bridge = false;
         let mut namespace = Namespace::ROOT;
@@ -60,6 +61,7 @@ fn parse(input: ParseStream, modules: &mut Vec<Module>) -> Result<()> {
             }
         }
     }
+
     Ok(())
 }
 

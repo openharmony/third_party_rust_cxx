@@ -5,17 +5,16 @@ use std::cmp::Ordering;
 use std::collections::BTreeSet;
 use std::fmt::{self, Display};
 use std::str::FromStr;
-use std::u64;
 use syn::{Error, Expr, Lit, Result, Token, UnOp};
 
-pub struct DiscriminantSet {
+pub(crate) struct DiscriminantSet {
     repr: Option<Atom>,
     values: BTreeSet<Discriminant>,
     previous: Option<Discriminant>,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq)]
-pub struct Discriminant {
+pub(crate) struct Discriminant {
     sign: Sign,
     magnitude: u64,
 }
@@ -27,7 +26,7 @@ enum Sign {
 }
 
 impl DiscriminantSet {
-    pub fn new(repr: Option<Atom>) -> Self {
+    pub(crate) fn new(repr: Option<Atom>) -> Self {
         DiscriminantSet {
             repr,
             values: BTreeSet::new(),
@@ -35,7 +34,7 @@ impl DiscriminantSet {
         }
     }
 
-    pub fn insert(&mut self, expr: &Expr) -> Result<Discriminant> {
+    pub(crate) fn insert(&mut self, expr: &Expr) -> Result<Discriminant> {
         let (discriminant, repr) = expr_to_discriminant(expr)?;
         match (self.repr, repr) {
             (None, Some(new_repr)) => {
@@ -62,7 +61,7 @@ impl DiscriminantSet {
         insert(self, discriminant)
     }
 
-    pub fn insert_next(&mut self) -> Result<Discriminant> {
+    pub(crate) fn insert_next(&mut self) -> Result<Discriminant> {
         let discriminant = match self.previous {
             None => Discriminant::zero(),
             Some(mut discriminant) => match discriminant.sign {
@@ -86,7 +85,7 @@ impl DiscriminantSet {
         insert(self, discriminant)
     }
 
-    pub fn inferred_repr(&self) -> Result<Atom> {
+    pub(crate) fn inferred_repr(&self) -> Result<Atom> {
         if let Some(repr) = self.repr {
             return Ok(repr);
         }
@@ -150,7 +149,7 @@ fn insert(set: &mut DiscriminantSet, discriminant: Discriminant) -> Result<Discr
 }
 
 impl Discriminant {
-    pub const fn zero() -> Self {
+    pub(crate) const fn zero() -> Self {
         Discriminant {
             sign: Sign::Positive,
             magnitude: 0,
@@ -181,7 +180,7 @@ impl Discriminant {
     }
 
     #[cfg(feature = "experimental-enum-variants-from-header")]
-    pub const fn checked_succ(self) -> Option<Self> {
+    pub(crate) const fn checked_succ(self) -> Option<Self> {
         match self.sign {
             Sign::Negative => {
                 if self.magnitude == 1 {
@@ -296,41 +295,41 @@ const LIMITS: [Limits; 8] = [
     Limits {
         repr: U8,
         min: Discriminant::zero(),
-        max: Discriminant::pos(std::u8::MAX as u64),
+        max: Discriminant::pos(u8::MAX as u64),
     },
     Limits {
         repr: I8,
-        min: Discriminant::neg(std::i8::MIN as i64),
-        max: Discriminant::pos(std::i8::MAX as u64),
+        min: Discriminant::neg(i8::MIN as i64),
+        max: Discriminant::pos(i8::MAX as u64),
     },
     Limits {
         repr: U16,
         min: Discriminant::zero(),
-        max: Discriminant::pos(std::u16::MAX as u64),
+        max: Discriminant::pos(u16::MAX as u64),
     },
     Limits {
         repr: I16,
-        min: Discriminant::neg(std::i16::MIN as i64),
-        max: Discriminant::pos(std::i16::MAX as u64),
+        min: Discriminant::neg(i16::MIN as i64),
+        max: Discriminant::pos(i16::MAX as u64),
     },
     Limits {
         repr: U32,
         min: Discriminant::zero(),
-        max: Discriminant::pos(std::u32::MAX as u64),
+        max: Discriminant::pos(u32::MAX as u64),
     },
     Limits {
         repr: I32,
-        min: Discriminant::neg(std::i32::MIN as i64),
-        max: Discriminant::pos(std::i32::MAX as u64),
+        min: Discriminant::neg(i32::MIN as i64),
+        max: Discriminant::pos(i32::MAX as u64),
     },
     Limits {
         repr: U64,
         min: Discriminant::zero(),
-        max: Discriminant::pos(std::u64::MAX),
+        max: Discriminant::pos(u64::MAX),
     },
     Limits {
         repr: I64,
-        min: Discriminant::neg(std::i64::MIN),
-        max: Discriminant::pos(std::i64::MAX as u64),
+        min: Discriminant::neg(i64::MIN),
+        max: Discriminant::pos(i64::MAX as u64),
     },
 ];
