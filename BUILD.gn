@@ -24,16 +24,15 @@ ohos_cargo_crate("lib") {
   cargo_pkg_authors = "David Tolnay <dtolnay@gmail.com>"
   cargo_pkg_name = "cxx"
   cargo_pkg_description = "Safe interop between Rust and C++"
-  deps = [ "//third_party/rust/crates/cxx/macro:macro_lib(${host_toolchain})" ]
+  deps = [
+    "//third_party/rust/crates/cxx/macro:macro_lib(${host_toolchain})",
+    ":cxx_cppdeps" ]
   features = [
     "alloc",
     "std",
   ]
   build_root = "build.rs"
   build_sources = [ "build.rs" ]
-  deps = [
-    ":cxx_cppdeps",
-  ]
   part_name = "rust_cxx"
   subsystem_name = "thirdparty"
 }
