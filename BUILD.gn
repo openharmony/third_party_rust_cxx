@@ -31,9 +31,8 @@ ohos_cargo_crate("lib") {
   ]
   build_root = "build.rs"
   build_sources = [ "build.rs" ]
-  build_deps = [
-    "//third_party/rust/crates/cxx/cc:lib",
-    "//third_party/rust/crates/cxxbridge_flags:lib"
+  deps = [
+    ":cxx_cppdeps",
   ]
   part_name = "rust_cxx"
   subsystem_name = "thirdparty"
