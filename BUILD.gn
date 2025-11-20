@@ -51,7 +51,7 @@ ohos_static_library("cxx_cppdeps") {
     "//third_party/rust/crates/cxx/include/cxx.h",
     "//third_party/rust/crates/cxx/src/cxx.cc",
   ]
-  deps = [ "//third_party/rust/crates/cxx:lib" ]
+  deps = []
   if (is_win) {
     defines += [ "CXX_RS_EXPORT=__declspec(dllexport)" ]
   } else {
