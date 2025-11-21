@@ -1196,12 +1196,7 @@ fn expand_rust_function_shim_super(
         // Set spans that result in the `Result<...>` written by the user being
         // highlighted as the cause if their error type has no Display impl.
         let result_begin = quote_spanned!(result.span=> ::cxx::core::result::Result<#ok, impl);
-        let result_end = if rustversion::cfg!(since(1.82)) {
-            // https://blog.rust-lang.org/2024/10/17/Rust-1.82.0.html#precise-capturing-use-syntax
-            quote_spanned!(rangle.span=> ::cxx::core::fmt::Display + use<>>)
-        } else {
-            quote_spanned!(rangle.span=> ::cxx::core::fmt::Display>)
-        };
+        let result_end = quote_spanned!(rangle.span=> ::cxx::core::fmt::Display>)
         quote!(-> #result_begin #result_end)
     } else {
         expand_return_type(&sig.ret)
@@ -1918,41 +1913,4 @@ fn expand_extern_return_type(ret: &Option<Type>, types: &Types, proper: bool) ->
     };
     let ty = expand_extern_type(ret, types, proper);
     quote!(-> #ty)
-}
-
-// #UnsafeExtern extern "C" {...}
-// https://blog.rust-lang.org/2024/10/17/Rust-1.82.0.html#safe-items-with-unsafe-extern
-struct UnsafeExtern;
-
-impl ToTokens for UnsafeExtern {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        if rustversion::cfg!(since(1.82)) {
-            Token![unsafe](Span::call_site()).to_tokens(tokens);
-        }
-    }
-}
-
-// #[#UnsafeAttr(#ExportNameAttr = "...")]
-// https://blog.rust-lang.org/2024/10/17/Rust-1.82.0.html#unsafe-attributes
-struct UnsafeAttr;
-struct ExportNameAttr;
-
-impl ToTokens for UnsafeAttr {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        if rustversion::cfg!(since(1.82)) {
-            Token![unsafe](Span::call_site()).to_tokens(tokens);
-        } else {
-            Ident::new("cfg_attr", Span::call_site()).to_tokens(tokens);
-        }
-    }
-}
-
-impl ToTokens for ExportNameAttr {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        if rustversion::cfg!(since(1.82)) {
-            Ident::new("export_name", Span::call_site()).to_tokens(tokens);
-        } else {
-            tokens.extend(quote!(all(), export_name));
-        }
-    }
 }
