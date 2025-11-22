@@ -19,7 +19,7 @@ if (host_os != "linux" || host_cpu != "arm64") {
     crate_root = "src/main.rs"
 
     sources = [ "src/main.rs" ]
-    edition = "2018"
+    edition = "2021"
     cargo_pkg_version = "1.0.130"
     cargo_pkg_authors = "David Tolnay <dtolnay@gmail.com>"
     cargo_pkg_name = "cxxbridge-cmd"
