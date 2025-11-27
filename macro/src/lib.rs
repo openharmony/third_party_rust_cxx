@@ -6,27 +6,29 @@
     clippy::enum_glob_use,
     clippy::if_same_then_else,
     clippy::inherent_to_string,
+    clippy::into_iter_without_iter,
     clippy::items_after_statements,
     clippy::large_enum_variant,
     clippy::match_bool,
     clippy::match_same_arms,
     clippy::module_name_repetitions,
+    clippy::needless_lifetimes,
     clippy::needless_pass_by_value,
     clippy::new_without_default,
     clippy::nonminimal_bool,
-    clippy::option_if_let_else,
     clippy::or_fun_call,
     clippy::redundant_else,
+    clippy::ref_option,
     clippy::shadow_unrelated,
     clippy::similar_names,
     clippy::single_match,
     clippy::single_match_else,
+    clippy::struct_field_names,
     clippy::too_many_arguments,
     clippy::too_many_lines,
     clippy::toplevel_ref_arg,
-    clippy::useless_let_if_seq,
-    // clippy bug: https://github.com/rust-lang/rust-clippy/issues/6983
-    clippy::wrong_self_convention
+    clippy::uninlined_format_args,
+    clippy::useless_let_if_seq
 )]
 
 mod derive;

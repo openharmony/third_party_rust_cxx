@@ -1,4 +1,5 @@
 #include "../include/cxx.h"
+#include <cstdio>
 #include <cstring>
 #include <iostream>
 #include <memory>
@@ -76,8 +77,8 @@ inline namespace cxxbridge1 {
 template <typename Exception>
 void panic [[noreturn]] (const char *msg) {
 #if defined(RUST_CXX_NO_EXCEPTIONS)
-  std::cerr << "Error: " << msg << ". Aborting." << std::endl;
-  std::terminate();
+  std::fprintf(stderr, "Error: %s. Aborting.\n", msg);
+  std::abort();
 #else
   throw Exception(msg);
 #endif
@@ -531,6 +532,11 @@ using isize_if_unique =
     typename std::conditional<std::is_same<rust::isize, int64_t>::value ||
                                   std::is_same<rust::isize, int32_t>::value,
                               struct isize_ignore, rust::isize>::type;
+// Similarly, on some platforms char may just be an alias for [u]int8_t.
+using char_if_unique =
+    typename std::conditional<std::is_same<char, uint8_t>::value ||
+                                  std::is_same<char, int8_t>::value,
+                              struct char_ignore, char>::type;
 
 class Fail final {
   repr::PtrLen &throw$;
@@ -592,6 +598,9 @@ static_assert(sizeof(std::string) <= kMaxExpectedWordsInString * sizeof(void *),
 } // namespace
 
 #define STD_VECTOR_OPS(RUST_TYPE, CXX_TYPE)                                    \
+  std::vector<CXX_TYPE> *cxxbridge1$std$vector$##RUST_TYPE##$new() noexcept {  \
+    return new std::vector<CXX_TYPE>();                                        \
+  }                                                                            \
   std::size_t cxxbridge1$std$vector$##RUST_TYPE##$size(                        \
       const std::vector<CXX_TYPE> &s) noexcept {                               \
     return s.size();                                                           \
@@ -766,7 +775,7 @@ static_assert(sizeof(std::string) <= kMaxExpectedWordsInString * sizeof(void *),
 #define FOR_EACH_RUST_VEC(MACRO)                                               \
   FOR_EACH_NUMERIC(MACRO)                                                      \
   MACRO(bool, bool)                                                            \
-  MACRO(char, char)                                                            \
+  MACRO(char, rust::detail::char_if_unique)                                    \
   MACRO(usize, rust::detail::usize_if_unique)                                  \
   MACRO(isize, rust::detail::isize_if_unique)                                  \
   MACRO(string, rust::String)                                                  \

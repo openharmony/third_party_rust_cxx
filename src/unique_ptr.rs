@@ -3,12 +3,18 @@ use crate::fmt::display;
 use crate::kind::Trivial;
 use crate::string::CxxString;
 use crate::ExternType;
+#[cfg(feature = "std")]
+use alloc::string::String;
+#[cfg(feature = "std")]
+use alloc::vec::Vec;
 use core::ffi::c_void;
 use core::fmt::{self, Debug, Display};
 use core::marker::PhantomData;
 use core::mem::{self, MaybeUninit};
 use core::ops::{Deref, DerefMut};
 use core::pin::Pin;
+#[cfg(feature = "std")]
+use std::io::{self, Read};
 
 /// Binding to C++ `std::unique_ptr<T, std::default_delete<T>>`.
 #[repr(C)]
@@ -179,6 +185,39 @@ where
             Some(value) => Display::fmt(value, formatter),
         }
     }
+}
+
+/// Forwarding `Read` trait implementation in a manner similar to `Box<T>`.
+///
+/// Note that the implementation will panic for null `UniquePtr<T>`.
+#[cfg(feature = "std")]
+impl<T> Read for UniquePtr<T>
+where
+    for<'a> Pin<&'a mut T>: Read,
+    T: UniquePtrTarget,
+{
+    #[inline]
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.pin_mut().read(buf)
+    }
+
+    #[inline]
+    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
+        self.pin_mut().read_to_end(buf)
+    }
+
+    #[inline]
+    fn read_to_string(&mut self, buf: &mut String) -> io::Result<usize> {
+        self.pin_mut().read_to_string(buf)
+    }
+
+    #[inline]
+    fn read_exact(&mut self, buf: &mut [u8]) -> io::Result<()> {
+        self.pin_mut().read_exact(buf)
+    }
+
+    // TODO: Foward other `Read` trait methods when they get stabilized (e.g.
+    // `read_buf` and/or `is_read_vectored`).
 }
 
 /// Trait bound for types which may be used as the `T` inside of a

@@ -12,12 +12,12 @@ CXX's integration with Cargo is handled through the [cxx-build] crate.
 
 [cxx-build]: https://docs.rs/cxx-build
 
-```toml,hidelines
-## Cargo.toml
-# [package]
-# name = "..."
-# version = "..."
-# edition = "2018"
+```toml,hidelines=...
+# Cargo.toml
+...[package]
+...name = "..."
+...version = "..."
+...edition = "2021"
 
 [dependencies]
 cxx = "1.0"
@@ -38,7 +38,7 @@ set up any additional source files and compiler flags as normal.
 fn main() {
     cxx_build::bridge("src/main.rs")  // returns a cc::Build
         .file("src/demo.cc")
-        .flag_if_supported("-std=c++11")
+        .std("c++11")
         .compile("cxxbridge-demo");
 
     println!("cargo:rerun-if-changed=src/main.rs");
