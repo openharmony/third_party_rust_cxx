@@ -1,3 +1,10 @@
+#![allow(
+    clippy::incompatible_msrv, // https://github.com/rust-lang/rust-clippy/issues/12257
+    clippy::items_after_statements,
+    clippy::uninlined_format_args,
+    clippy::unused_async
+)]
+
 use cxx::{let_cxx_string, CxxString};
 use std::fmt::Write as _;
 
@@ -16,10 +23,17 @@ fn test_async_cxx_string() {
 }
 
 #[test]
-fn test_debug() {
-    let_cxx_string!(s = "x\"y\'z");
+fn test_display() {
+    let_cxx_string!(s = b"w\"x\'y\xF1\x80\xF1\x80z");
 
-    assert_eq!(format!("{:?}", s), r#""x\"y'z""#);
+    assert_eq!(format!("{}", s), "w\"x'y\u{fffd}\u{fffd}z");
+}
+
+#[test]
+fn test_debug() {
+    let_cxx_string!(s = b"w\"x\'y\xF1\x80z");
+
+    assert_eq!(format!("{:?}", s), r#""w\"x'y\xf1\x80z""#);
 }
 
 #[test]

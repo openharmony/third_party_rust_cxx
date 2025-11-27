@@ -2,21 +2,23 @@ use crate::syntax::map::UnorderedMap as Map;
 use crate::syntax::Api;
 use proc_macro2::Ident;
 
-pub struct NamespaceEntries<'a> {
+pub(crate) struct NamespaceEntries<'a> {
     direct: Vec<&'a Api>,
     nested: Vec<(&'a Ident, NamespaceEntries<'a>)>,
 }
 
 impl<'a> NamespaceEntries<'a> {
-    pub fn new(apis: Vec<&'a Api>) -> Self {
+    pub(crate) fn new(apis: Vec<&'a Api>) -> Self {
         sort_by_inner_namespace(apis, 0)
     }
 
-    pub fn direct_content(&self) -> &[&'a Api] {
+    pub(crate) fn direct_content(&self) -> &[&'a Api] {
         &self.direct
     }
 
-    pub fn nested_content(&self) -> impl Iterator<Item = (&'a Ident, &NamespaceEntries<'a>)> {
+    pub(crate) fn nested_content(
+        &self,
+    ) -> impl Iterator<Item = (&'a Ident, &NamespaceEntries<'a>)> {
         self.nested.iter().map(|(k, entries)| (*k, entries))
     }
 }
@@ -56,7 +58,6 @@ mod tests {
     use crate::syntax::namespace::Namespace;
     use crate::syntax::{Api, Doc, ExternType, ForeignName, Lang, Lifetimes, Pair};
     use proc_macro2::{Ident, Span};
-    use std::iter::FromIterator;
     use syn::punctuated::Punctuated;
     use syn::Token;
 

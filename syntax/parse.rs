@@ -22,12 +22,12 @@ use syn::{
     TypeReference, Variant as RustVariant, Visibility,
 };
 
-pub mod kw {
+pub(crate) mod kw {
     syn::custom_keyword!(Pin);
     syn::custom_keyword!(Result);
 }
 
-pub fn parse_items(
+pub(crate) fn parse_items(
     cx: &mut Errors,
     items: Vec<Item>,
     trusted: bool,
@@ -42,7 +42,7 @@ pub fn parse_items(
             },
             Item::Enum(item) => apis.push(parse_enum(cx, item, namespace)),
             Item::ForeignMod(foreign_mod) => {
-                parse_foreign_mod(cx, foreign_mod, &mut apis, trusted, namespace)
+                parse_foreign_mod(cx, foreign_mod, &mut apis, trusted, namespace);
             }
             Item::Impl(item) => match parse_impl(cx, item) {
                 Ok(imp) => apis.push(imp),
@@ -436,14 +436,11 @@ fn parse_foreign_mod(
 }
 
 fn parse_lang(abi: &Abi) -> Result<Lang> {
-    let name = match &abi.name {
-        Some(name) => name,
-        None => {
-            return Err(Error::new_spanned(
-                abi,
-                "ABI name is required, extern \"C++\" or extern \"Rust\"",
-            ));
-        }
+    let Some(name) = &abi.name else {
+        return Err(Error::new_spanned(
+            abi,
+            "ABI name is required, extern \"C++\" or extern \"Rust\"",
+        ));
     };
 
     match name.value().as_str() {
@@ -1329,16 +1326,12 @@ fn parse_type_path(ty: &TypePath) -> Result<Type> {
 fn parse_type_array(ty: &TypeArray) -> Result<Type> {
     let inner = parse_type(&ty.elem)?;
 
-    let len_expr = if let Expr::Lit(lit) = &ty.len {
-        lit
-    } else {
+    let Expr::Lit(len_expr) = &ty.len else {
         let msg = "unsupported expression, array length must be an integer literal";
         return Err(Error::new_spanned(&ty.len, msg));
     };
 
-    let len_token = if let Lit::Int(int) = &len_expr.lit {
-        int.clone()
-    } else {
+    let Lit::Int(len_token) = &len_expr.lit else {
         let msg = "array length must be an integer literal";
         return Err(Error::new_spanned(len_expr, msg));
     };
@@ -1357,7 +1350,7 @@ fn parse_type_array(ty: &TypeArray) -> Result<Type> {
         inner,
         semi_token,
         len,
-        len_token,
+        len_token: len_token.clone(),
     })))
 }
 

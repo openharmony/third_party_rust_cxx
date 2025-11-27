@@ -148,7 +148,7 @@ impl CxxString {
     ///
     /// [replacement character]: https://doc.rust-lang.org/std/char/constant.REPLACEMENT_CHARACTER.html
     #[cfg(feature = "alloc")]
-    #[cfg_attr(doc_cfg, doc(cfg(feature = "alloc")))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
     pub fn to_string_lossy(&self) -> Cow<str> {
         String::from_utf8_lossy(self.as_bytes())
     }
@@ -241,7 +241,7 @@ impl Eq for CxxString {}
 
 impl PartialOrd for CxxString {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.as_bytes().partial_cmp(other.as_bytes())
+        Some(self.cmp(other))
     }
 }
 
